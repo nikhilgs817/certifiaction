@@ -150,7 +150,7 @@ With this design that's **expected and harmless**: `eth0` changes, the node stay
 ## What's next (out of scope this week)
 
 **L1, the rest of the paved road (weeks 2–4)**
-- **Service template:** FastAPI + Dockerfile + Helm chart in `platform/helm-charts/`, Jenkinsfile using `platform/jenkins-shared-library/`.
+- **Service template + CI (Week 2):** FastAPI + Dockerfile + Helm chart in `platform/helm-charts/`. CI is **GitHub Actions** on GitHub-hosted runners: a reusable workflow in `.github/workflows/` called per service, composite actions in `.github/actions/`, and images pushed to **GHCR** (private, until Harbor in Week 4). The new image tag is promoted through Git into `overlays/halo`.
 - **Supply chain:** Harbor (registry + proxy cache), Trivy (scan), Syft (SBOM), cosign (sign), **Kyverno** policy that blocks unsigned images in tenant namespaces.
 - **Progressive delivery:** Argo Rollouts canary for the template service.
 - **Platform services:** Sealed Secrets or External Secrets, cert-manager + TLS (then turn off `server.insecure`), the observability stack (Prometheus, Loki, Tempo, OTel, Grafana), OpenCost.

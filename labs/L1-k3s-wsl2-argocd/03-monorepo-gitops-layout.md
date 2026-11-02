@@ -65,7 +65,6 @@ platform/terraform|AWS GPU node groups, SageMaker, networking (later labs). No s
 platform/kubernetes|GitOps tree reconciled by Argo CD. See layout below.
 platform/k3s|Host-level config for k3s nodes (config.yaml, systemd units). Applied by install scripts, not Argo CD.
 platform/helm-charts|Reusable charts, starting with the FastAPI service template (L1 week 2).
-platform/jenkins-shared-library|Jenkins pipeline library for build, scan, sign, push (L1 week 2+).
 shared|Shared AI services used by several projects.
 shared/llm-gateway|LiteLLM routing, budgets, fallbacks in front of self-hosted models (L2).
 shared/rag-service|pgvector RAG that cites or abstains (L8 news RAG).
@@ -83,6 +82,8 @@ docs/architecture|Diagrams and platform overviews.
 docs/adrs|Architecture Decision Records (one decision per file, numbered).
 docs/runbooks|Operational procedures with measured results.
 docs/demos|Demo scripts and recordings for interviews.
+.github/workflows|Reusable GitHub Actions workflows (workflow_call) + a thin caller per service. Replaces a Jenkins shared library. CI arrives in Week 2.
+.github/actions|Composite actions for repeated CI steps (for example setup, build-and-push to GHCR, promote image tag). Used by the reusable workflows.
 EOF
 
 # ---- .gitignore: secrets and junk never reach Git ----

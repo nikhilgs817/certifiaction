@@ -1,7 +1,10 @@
 # L1 · Week 1: k3s on WSL2 + Argo CD (cluster **halo**)
 
+> **Rev 2, Nov 2 2026: CI is GitHub Actions only; Jenkins removed.**
+
 **Checkpoint:** *Argo CD syncing a sample app from Git.*
 **Framing:** a production-style platform built on one box. Every choice is the one a large organisation would make, scaled down. The end goal is to self-host several LLMs on Kubernetes so you stop paying per token.
+**Day-job angle (patterns, never data):** a GitOps paved road on GitHub Actions that I can pitch at work as the modern path off Jenkins.
 
 | Part | File | Steps | Blocks |
 |---|---|---|---|

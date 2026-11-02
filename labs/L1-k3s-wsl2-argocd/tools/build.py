@@ -195,6 +195,7 @@ cover = f"""
     Production-style home-lab build on the Minisforum MS-S1 Max (Windows 11 + WSL2 Ubuntu 24.04)<br>
     k3s v1.36.5+k3s1 &middot; kubectl v1.36.6 &middot; Helm v4.3.1 &middot; Argo CD chart 10.11.6 (v3.5.6) &middot; podinfo 6.17.0<br>
     Versions checked 2026-11-02 &middot; Project MLOps / ai-platform-portfolio
+    <br><b style="color:#b45309">Rev 2, Nov 2 2026: CI is GitHub Actions only; Jenkins removed.</b>
   </div>
   <div class="legend"><b>How to copy commands:</b> every command box is numbered and colour-coded by where it runs.
     Select the whole box (from its first to last line) and paste it into the matching shell.<br><br>
