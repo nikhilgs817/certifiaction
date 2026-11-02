@@ -1,0 +1,20 @@
+# platform/kubernetes/argocd/clusters/halo/storage-classes.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: storage-classes
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  project: platform
+  source:
+    repoURL: git@github.com:nikhilgs817/ai-platform-portfolio.git
+    targetRevision: main
+    path: platform/kubernetes/apps/storage-classes/overlays/halo
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true

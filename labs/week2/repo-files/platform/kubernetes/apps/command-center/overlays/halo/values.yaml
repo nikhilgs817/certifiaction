@@ -1,0 +1,12 @@
+# platform/kubernetes/apps/command-center/overlays/halo/values.yaml — cluster "halo".
+# image.tag is written by CI (.github/actions/promote-tag). Humans change it only via git revert.
+image:
+  tag: ""
+replicaCount: 1                    # one API pod: Phoenix runs background threads (knowledge base, imports)
+env:
+  PHOENIX_CLOCK: "2026-10-22T10:40"          # demo clock + synthetic demo data (Phoenix rule: no real account data)
+  PHOENIX_ALLOWED_HOSTS: phoenix.halo.localhost
+ingress:
+  enabled: true
+  host: phoenix.halo.localhost
+jobs: []                           # Step B4.4 adds the one-shot demo-data seed here

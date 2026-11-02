@@ -1,0 +1,78 @@
+# platform/kubernetes/apps/phoenix-data/base/backup.yaml — nightly pg_dump of database "phoenix" to its own PVC.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: timescale-backups
+  annotations:
+    # same wave as the StatefulSet that mounts it: a WaitForFirstConsumer PVC stays Pending (Progressing)
+    # until a pod uses it, and Argo CD would wait forever on an earlier wave
+    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path-retain
+  resources:
+    requests: {storage: 20Gi}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: timescale-backup
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  schedule: "15 21 * * *"                 # 21:15 every night...
+  timeZone: Etc/UTC                       # ...in this zone; change to your IANA zone, e.g. Europe/London
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600           # still runs if the PC was asleep at 21:15, within the hour
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: timescale-backup
+            lab.platform/access-timescale: "true"
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 70
+            runAsGroup: 70
+            fsGroup: 70
+            seccompProfile: {type: RuntimeDefault}
+          containers:
+            - name: pg-dump
+              image: timescale/timescaledb:2.31.0-pg18@sha256:0fcff5761363809d1242f2261a3482197b5a5337407f8b97a976fb174206d579
+              command: [/bin/sh, -c]
+              args:
+                - |
+                  set -eu
+                  f="/backups/phoenix-`date -u +%Y%m%dT%H%M%SZ`.dump"
+                  pg_dump --format=custom --dbname=phoenix --file="$f.partial"
+                  mv "$f.partial" "$f"
+                  find /backups -name 'phoenix-*.dump' -mtime +14 -delete
+                  echo "backup ok: $f"; ls -lh /backups | tail -5
+              env:
+                - {name: PGHOST, value: timescale.phoenix.svc.cluster.local}
+                - {name: PGUSER, value: postgres}
+                - name: PGPASSWORD
+                  valueFrom: {secretKeyRef: {name: timescale-auth, key: postgres-password}}
+              resources:
+                requests: {cpu: 50m, memory: 128Mi}
+                limits: {memory: 512Mi}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: {drop: [ALL]}
+              volumeMounts:
+                - {name: backups, mountPath: /backups}
+                - {name: tmp, mountPath: /tmp}
+          volumes:
+            - name: backups
+              persistentVolumeClaim: {claimName: timescale-backups}
+            - {name: tmp, emptyDir: {}}

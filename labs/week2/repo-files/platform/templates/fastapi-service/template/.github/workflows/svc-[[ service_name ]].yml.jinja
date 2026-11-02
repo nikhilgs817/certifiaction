@@ -1,0 +1,36 @@
+# .github/workflows/svc-[[ service_name ]].yml — generated caller. All logic lives in _service-ci.yml.
+name: svc-[[ service_name ]]
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - projects/[[ service_name ]]/**
+      - .github/workflows/svc-[[ service_name ]].yml
+      - .github/workflows/_service-ci.yml
+      - .github/actions/**
+  pull_request:
+    paths:
+      - projects/[[ service_name ]]/**
+      - .github/workflows/svc-[[ service_name ]].yml
+      - .github/workflows/_service-ci.yml
+      - .github/actions/**
+  workflow_dispatch:
+
+permissions: {}                       # nothing by default; the job below grants exactly what it needs
+
+concurrency:
+  group: svc-[[ service_name ]]-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  ci:
+    uses: ./.github/workflows/_service-ci.yml
+    with:
+      service: [[ service_name ]]
+      path: projects/[[ service_name ]]
+      python-version: "3.14"
+      publish: ${{ github.event_name != 'pull_request' }}
+    permissions:
+      contents: write                 # promote job commits the new tag (GITHUB_TOKEN; cannot trigger workflows)
+      packages: write                 # push to ghcr.io

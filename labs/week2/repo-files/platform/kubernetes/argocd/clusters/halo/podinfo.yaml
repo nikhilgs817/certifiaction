@@ -1,0 +1,40 @@
+# platform/kubernetes/argocd/clusters/halo/podinfo.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: podinfo
+  namespace: argocd
+  labels:
+    lab.platform/env: halo
+    lab.platform/tenant: podinfo
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io   # removing this app from Git also removes its resources
+spec:
+  project: lab
+  source:
+    repoURL: git@github.com:nikhilgs817/ai-platform-portfolio.git
+    targetRevision: main
+    path: platform/kubernetes/apps/podinfo/overlays/halo
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: podinfo
+  revisionHistoryLimit: 10
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true
+    managedNamespaceMetadata:
+      labels:
+        pod-security.kubernetes.io/enforce: restricted
+        pod-security.kubernetes.io/enforce-version: latest
+        pod-security.kubernetes.io/warn: restricted
+        lab.platform/tenant: podinfo
+        lab.platform/env: halo
+    retry:
+      limit: 5
+      backoff: { duration: 10s, factor: 2, maxDuration: 3m }

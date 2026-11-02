@@ -1,0 +1,5 @@
+# platform/kubernetes/apps/storage-classes/overlays/halo/kustomization.yaml (aws will use gp3 instead)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base

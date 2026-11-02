@@ -1,0 +1,38 @@
+# platform/kubernetes/argocd/clusters/halo/command-center.yaml — Phoenix Command Center through the service chart.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: command-center
+  namespace: argocd
+  labels:
+    lab.platform/env: halo
+    lab.platform/tenant: phoenix
+  annotations:
+    argocd.argoproj.io/sync-wave: "30"            # after phoenix-data is Healthy
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: lab
+  source:
+    repoURL: git@github.com:nikhilgs817/ai-platform-portfolio.git
+    targetRevision: main
+    path: platform/helm-charts/service
+    helm:
+      releaseName: command-center
+      valueFiles:
+        - ../../kubernetes/apps/_shared/halo/values.yaml
+        - ../../kubernetes/apps/command-center/base/values.yaml
+        - ../../kubernetes/apps/command-center/overlays/halo/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: phoenix                            # created and labelled by phoenix-data, not here
+  revisionHistoryLimit: 10
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff: {duration: 10s, factor: 2, maxDuration: 3m}

@@ -1,0 +1,36 @@
+# .github/workflows/repo-guards.yml — repository-wide rules that run on every push and pull request.
+name: repo-guards
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: repo-guards-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  no-secrets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/secret-scan
+      - name: No env files, databases, broker exports or Terraform state are tracked
+        run: |
+          if git ls-files | grep -E '(^|/)\.env$|(^|/)service\.env$|\.db$|\.sqlite$|(^|/)exports/|\.tfstate'; then
+            echo "::error::these files must never be committed"; exit 1
+          fi
+      - name: Every Secret manifest in Git is a SealedSecret
+        run: |
+          bad=$(grep -rlE '^kind: Secret[[:space:]]*$' platform/kubernetes || true)
+          if [ -n "$bad" ]; then echo "::error::plain Secret manifests found: $bad"; exit 1; fi

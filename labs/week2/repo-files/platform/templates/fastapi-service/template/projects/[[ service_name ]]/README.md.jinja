@@ -1,0 +1,18 @@
+# [[ service_name ]]
+
+[[ description ]]
+
+Generated from `platform/templates/fastapi-service` (Copier). Owner: [[ owner ]].
+
+| What | Where |
+|---|---|
+| Code | `projects/[[ service_name ]]/app` |
+| Deploy values | `platform/kubernetes/apps/[[ service_name ]]/{base,overlays/halo}/values.yaml` |
+| Argo CD Application | `platform/kubernetes/argocd/clusters/halo/[[ service_name ]].yaml` |
+| CI | `.github/workflows/svc-[[ service_name ]].yml` -> `_service-ci.yml` |
+| URL (halo) | http://[[ service_name ]].halo.localhost |
+
+```bash
+make install && make ci      # lint, typecheck, test
+make run                     # http://127.0.0.1:8000/docs
+```

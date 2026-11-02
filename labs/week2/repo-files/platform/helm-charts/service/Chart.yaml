@@ -1,0 +1,8 @@
+# platform/helm-charts/service/Chart.yaml — the paved-road chart: one HTTP service plus optional workers and jobs.
+apiVersion: v2
+name: service
+description: Paved-road chart for HTTP services on the lab platform (halo now, aws later)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.30.0-0"

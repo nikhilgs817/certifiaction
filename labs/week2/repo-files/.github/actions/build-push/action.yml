@@ -1,0 +1,58 @@
+# .github/actions/build-push/action.yml — build with BuildKit layer cache; push ghcr.io/<owner>/<service>:<git sha>.
+name: build-push
+description: Build the service image (cached per service) and push it to GHCR tagged with the full git SHA
+inputs:
+  service:
+    description: Image name
+    required: true
+  path:
+    description: Docker build context
+    required: true
+  push:
+    description: "'true' to log in and push"
+    default: "true"
+outputs:
+  image:
+    description: Image repository
+    value: ${{ steps.ref.outputs.image }}
+  tag:
+    description: Immutable tag (the full git SHA)
+    value: ${{ steps.ref.outputs.tag }}
+  digest:
+    description: Image digest (empty when not pushed)
+    value: ${{ steps.build.outputs.digest }}
+runs:
+  using: composite
+  steps:
+    - id: ref
+      shell: bash
+      env:
+        SERVICE: ${{ inputs.service }}
+        OWNER: ${{ github.repository_owner }}
+      run: |
+        echo "image=ghcr.io/${OWNER,,}/${SERVICE}" >> "$GITHUB_OUTPUT"
+        echo "tag=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+    - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+    - if: inputs.push == 'true'
+      uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+    - id: meta
+      uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+      with:
+        images: ${{ steps.ref.outputs.image }}
+        tags: type=raw,value=${{ steps.ref.outputs.tag }}
+        labels: org.opencontainers.image.title=${{ inputs.service }}
+    - id: build
+      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      with:
+        context: ${{ inputs.path }}
+        push: ${{ inputs.push == 'true' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        build-args: APP_VERSION=${{ steps.ref.outputs.tag }}
+        cache-from: type=gha,scope=${{ inputs.service }}
+        cache-to: type=gha,mode=max,scope=${{ inputs.service }}
+        provenance: false                 # Week 4 adds SBOM (Syft) and signatures (cosign)

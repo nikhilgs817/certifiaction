@@ -1,0 +1,21 @@
+# .github/dependabot.yml — weekly, grouped update PRs for the whole monorepo.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: {interval: weekly}
+    groups:
+      actions: {patterns: ["*"]}
+  - package-ecosystem: uv                       # template services (they have uv.lock)
+    directories: ["/projects/*"]
+    schedule: {interval: weekly}
+    groups:
+      python: {patterns: ["*"]}
+  - package-ecosystem: pip                      # Phoenix (pyproject + setuptools)
+    directory: /projects/command-center
+    schedule: {interval: monthly}
+    groups:
+      python: {patterns: ["*"]}
+  - package-ecosystem: docker                   # base images pinned by digest in every Dockerfile
+    directories: ["/projects/*"]
+    schedule: {interval: weekly}

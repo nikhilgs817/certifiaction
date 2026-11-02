@@ -1,0 +1,40 @@
+# platform/kubernetes/apps/command-center/base/values.yaml — Phoenix Command Center on the paved-road chart.
+# One image, run several ways (the image ENTRYPOINT is `phoenix`): serve = this Deployment, worker = a worker.
+nameOverride: command-center
+image:
+  repository: ghcr.io/nikhilgs817/command-center
+args: [serve, --host, 0.0.0.0, --port, "8000", --metrics-port, "9100"]
+containerPort: 8000
+metrics:
+  enabled: true
+  port: 9100                       # Phoenix serves /metrics on its own port, outside the page login
+  path: /metrics
+probes:
+  startup: {path: /livez, periodSeconds: 3, failureThreshold: 40}
+  liveness: {path: /livez, periodSeconds: 15, failureThreshold: 4}
+  readiness: {path: /readyz, periodSeconds: 10, failureThreshold: 3}
+env:
+  PHOENIX_LOG_FORMAT: json
+  PHOENIX_IMPORT_WATCH: "off"      # no watched download folders inside a container
+  PHOENIX_WORKER_INTERVAL: "300"
+  PHOENIX_CONFIG_DIR: /app/config
+secretEnv:
+  - {name: PHOENIX_DATABASE_URL, secretName: phoenix-db-app, key: uri}
+envFromSecrets:
+  - phoenix-secrets                # PHOENIX_BASIC_AUTH, PHOENIX_SECRET_KEY. No broker or order keys this week.
+podLabels:
+  app.kubernetes.io/part-of: phoenix
+  lab.platform/access-timescale: "true"
+  lab.platform/access-redis: "true"
+resources:
+  requests: {cpu: 100m, memory: 256Mi}
+  limits: {memory: 1Gi}
+workers:
+  - name: worker                   # bars, screen, ticket expiry (paper sync is off: no Alpaca keys in the cluster)
+    args: [worker]
+    resources:
+      requests: {cpu: 100m, memory: 256Mi}
+      limits: {memory: 1Gi}
+migrations:
+  enabled: true                    # `phoenix db upgrade` (Alembic) before every rollout
+  args: [db, upgrade]

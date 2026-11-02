@@ -1,0 +1,3 @@
+# platform/kubernetes/argocd/install/values-halo.yaml — overrides for cluster "halo"
+global:
+  domain: argocd.halo.localhost       # browser resolves *.localhost to 127.0.0.1

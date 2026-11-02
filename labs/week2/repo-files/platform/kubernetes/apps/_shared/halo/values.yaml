@@ -1,0 +1,10 @@
+# platform/kubernetes/apps/_shared/halo/values.yaml — facts about cluster "halo" that every service chart needs.
+# Listed first in every service Application's valueFiles, so a service can still override any of it.
+imagePullSecret:
+  create: true
+  name: ghcr-pull
+  encryptedDockerConfigJson: ""      # filled by platform/scripts/seal-ghcr-pull.sh (ciphertext; safe to commit)
+guardrails:
+  ingressFromCIDRs:                  # Traefik runs hostNetwork: traffic arrives from the node, via cni0
+    - 10.255.255.10/32               #   node IP (halo0)
+    - 10.42.0.1/32                   #   cni0 gateway of the node's pod subnet

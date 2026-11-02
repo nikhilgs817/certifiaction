@@ -1,0 +1,7 @@
+# .gitleaks.toml — default rules plus a narrow allowlist for known, reviewed false positives.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Alpaca pagination cursors in test fixtures (not secrets)"
+paths = ['''projects/command-center/tests/slice/fixtures/.*\.json''']

@@ -1,0 +1,36 @@
+# platform/kubernetes/argocd/clusters/halo/phoenix-data.yaml — namespace guardrails + TimescaleDB + Redis + backups.
+# No resources-finalizer: deleting this Application must never delete the databases.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: phoenix-data
+  namespace: argocd
+  labels:
+    lab.platform/env: halo
+    lab.platform/tenant: phoenix
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"            # before command-center (30); waits until Healthy
+spec:
+  project: lab
+  source:
+    repoURL: git@github.com:nikhilgs817/ai-platform-portfolio.git
+    targetRevision: main
+    path: platform/kubernetes/apps/phoenix-data/overlays/halo
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: phoenix
+  syncPolicy:
+    automated:
+      prune: true                                 # StatefulSets and the backup PVC carry Prune=false,Delete=false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    managedNamespaceMetadata:
+      labels:
+        pod-security.kubernetes.io/enforce: restricted
+        pod-security.kubernetes.io/enforce-version: latest
+        lab.platform/tenant: phoenix
+        lab.platform/env: halo
+    retry:
+      limit: 5
+      backoff: {duration: 10s, factor: 2, maxDuration: 3m}

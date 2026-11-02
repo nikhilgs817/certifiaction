@@ -1,0 +1,21 @@
+# platform/kubernetes/argocd/clusters/halo/projects.yaml — Argo CD manages its own AppProjects
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd-projects
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"            # projects before the apps that use them
+spec:
+  project: platform
+  source:
+    repoURL: git@github.com:nikhilgs817/ai-platform-portfolio.git
+    targetRevision: main
+    path: platform/kubernetes/argocd/projects
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

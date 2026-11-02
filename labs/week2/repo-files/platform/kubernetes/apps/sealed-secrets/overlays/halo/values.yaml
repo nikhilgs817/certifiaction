@@ -1,0 +1,10 @@
+# platform/kubernetes/apps/sealed-secrets/overlays/halo/values.yaml — Sealed Secrets controller on halo.
+fullnameOverride: sealed-secrets-controller   # the name kubeseal looks for by default (namespace kube-system)
+image:
+  registry: docker.io
+  repository: bitnami/sealed-secrets-controller
+  tag: "0.41.2"                               # pinned; bitnami-labs project, not part of the Bitnami catalog change
+keyrenewperiod: "0"                           # lab: one sealing key to back up; rotate by hand (runbook)
+resources:
+  requests: {cpu: 20m, memory: 64Mi}
+  limits: {memory: 256Mi}

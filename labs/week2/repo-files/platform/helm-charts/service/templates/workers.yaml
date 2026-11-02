@@ -1,0 +1,34 @@
+{{- /* platform/helm-charts/service/templates/workers.yaml — background processes from the same image (no Service) */ -}}
+{{- range .Values.workers }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "svc.name" $ }}-{{ .name }}
+  labels:
+    {{- include "svc.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ .name }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  replicas: {{ if $.Values.image.tag }}{{ if hasKey . "replicas" }}{{ .replicas }}{{ else }}1{{ end }}{{ else }}0{{ end }}
+  revisionHistoryLimit: 5
+  strategy:
+    {{- toYaml (.strategy | default (dict "type" "Recreate")) | nindent 4 }}
+  selector:
+    matchLabels:
+      {{- include "svc.selector" (dict "root" $ "component" .name) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "svc.labels" $ | nindent 8 }}
+        app.kubernetes.io/component: {{ .name }}
+        {{- with $.Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        checksum/env: {{ toJson $.Values.env | sha256sum | trunc 16 | quote }}
+    spec:
+      {{- include "svc.podSpec" (dict "root" $ "component" .name "main" false
+            "command" .command "args" .args "resources" (.resources | default $.Values.resources)) | nindent 6 }}
+{{- end }}

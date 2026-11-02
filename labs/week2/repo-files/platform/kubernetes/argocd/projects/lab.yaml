@@ -1,0 +1,25 @@
+# platform/kubernetes/argocd/projects/lab.yaml
+# Tenant workloads (samples, Phoenix, LLM services). Least privilege: listed namespaces only,
+# no cluster-scoped resources except the Namespace that CreateNamespace=true needs.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: lab
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+    argocd.argoproj.io/sync-options: Prune=false
+spec:
+  description: Tenant workloads on the halo/aws platform
+  sourceRepos:
+    - git@github.com:nikhilgs817/ai-platform-portfolio.git
+  destinations:                                    # one entry per tenant namespace (new-service.sh adds them)
+    - server: https://kubernetes.default.svc
+      namespace: podinfo
+    - server: https://kubernetes.default.svc
+      namespace: phoenix
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  orphanedResources:
+    warn: true                                     # flag anything in tenant namespaces not in Git

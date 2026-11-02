@@ -1,0 +1,12 @@
+# platform/kubernetes/apps/[[ service_name ]]/overlays/halo/values.yaml — cluster "halo".
+# image.tag is written by CI (.github/actions/promote-tag). Humans change it only via git revert.
+image:
+  tag: ""
+replicaCount: [[ replicas ]]
+env:
+  APP_ENVIRONMENT: halo
+ingress:
+  enabled: true
+  host: [[ service_name ]].halo.localhost
+guardrails:
+  enabled: [[ 'true' if namespace == service_name else 'false' ]]

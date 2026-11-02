@@ -1,0 +1,23 @@
+"""All configuration comes from environment variables prefixed APP_. No config files, no secret defaults."""
+
+from __future__ import annotations
+
+from functools import lru_cache
+from typing import Literal
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="APP_", extra="ignore")
+
+    service_name: str = "[[ service_name ]]"
+    environment: str = "local"
+    version: str = "dev"  # set at build time (Dockerfile ARG APP_VERSION = git SHA)
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    greeting: str = "hello from the paved road"
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()

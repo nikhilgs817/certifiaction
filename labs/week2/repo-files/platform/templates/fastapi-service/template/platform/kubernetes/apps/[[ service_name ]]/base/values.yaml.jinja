@@ -1,0 +1,9 @@
+# platform/kubernetes/apps/[[ service_name ]]/base/values.yaml — environment-neutral values for the service chart.
+image:
+  repository: ghcr.io/[[ github_owner ]]/[[ service_name ]]
+env:
+  APP_SERVICE_NAME: [[ service_name ]]
+  APP_LOG_LEVEL: INFO
+resources:
+  requests: {cpu: 50m, memory: 96Mi}
+  limits: {memory: 256Mi}

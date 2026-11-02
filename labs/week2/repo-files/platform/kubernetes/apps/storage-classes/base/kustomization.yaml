@@ -1,0 +1,5 @@
+# platform/kubernetes/apps/storage-classes/base/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - local-path-retain.yaml

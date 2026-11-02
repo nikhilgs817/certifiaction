@@ -1,0 +1,106 @@
+# .github/workflows/svc-command-center.yml — Phoenix Command Center: the shared pipeline + Phoenix-only test jobs.
+name: svc-command-center
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - projects/command-center/**
+      - .github/workflows/svc-command-center.yml
+      - .github/workflows/_service-ci.yml
+      - .github/actions/**
+  pull_request:
+    paths:
+      - projects/command-center/**
+      - .github/workflows/svc-command-center.yml
+      - .github/workflows/_service-ci.yml
+      - .github/actions/**
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: svc-command-center-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  ci:
+    uses: ./.github/workflows/_service-ci.yml
+    with:
+      service: command-center
+      path: projects/command-center
+      python-version: "3.12"                     # what Phoenix supports today (3.11-3.12 tested)
+      publish: ${{ github.event_name != 'pull_request' }}
+    permissions:
+      contents: write
+      packages: write
+
+  postgres-tests:                                # the PostgreSQL tests, against the same engine as production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    services:
+      db:
+        image: timescale/timescaledb:2.31.0-pg18@sha256:0fcff5761363809d1242f2261a3482197b5a5337407f8b97a976fb174206d579
+        env:
+          POSTGRES_PASSWORD: postgres            # throwaway CI database, not a secret
+          POSTGRES_DB: phoenix_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      PHOENIX_TEST_PG_URL: postgresql://postgres:postgres@localhost:5432/phoenix_test
+    defaults:
+      run:
+        working-directory: projects/command-center
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.6"
+          python-version: "3.12"
+      - run: make install
+      - run: .venv/bin/python -m pytest tests/test_web_db.py -rs
+
+  windows-tests:                                 # Phoenix also runs natively on the Windows PC
+    runs-on: windows-2025
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: projects/command-center
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.6"
+          python-version: "3.12"
+      - run: uv venv .venv
+      - run: uv pip install -p .venv -e ".[dev]"
+      - run: .venv\Scripts\python -m pytest
+
+  fidelity-helper:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: projects/command-center/PhoenixFidelitySync
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.6"
+          python-version: "3.12"
+      - run: uv venv .venv
+      - run: uv pip install -p .venv -r requirements.txt pytest
+      - run: .venv\Scripts\python -m pytest test_fidelity_sync.py -q

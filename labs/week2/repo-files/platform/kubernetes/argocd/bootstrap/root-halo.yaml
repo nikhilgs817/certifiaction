@@ -1,0 +1,28 @@
+# platform/kubernetes/argocd/bootstrap/root-halo.yaml
+# The root ("app of apps") for cluster halo. Applied ONCE by hand at bootstrap; everything below it is GitOps.
+# Deliberately NO resources-finalizer: deleting the root must never cascade-delete every app.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-halo
+  namespace: argocd
+  labels:
+    lab.platform/env: halo
+spec:
+  project: platform
+  source:
+    repoURL: git@github.com:nikhilgs817/ai-platform-portfolio.git
+    targetRevision: main
+    path: platform/kubernetes/argocd/clusters/halo
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff: { duration: 10s, factor: 2, maxDuration: 3m }

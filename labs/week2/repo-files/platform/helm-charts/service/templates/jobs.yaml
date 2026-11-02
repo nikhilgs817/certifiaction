@@ -1,0 +1,57 @@
+{{- /* platform/helm-charts/service/templates/jobs.yaml — migrations (Sync hook, every sync) and one-shot Jobs */ -}}
+{{- if and .Values.migrations.enabled .Values.image.tag }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "svc.name" . }}-migrate
+  labels:
+    {{- include "svc.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrate
+  annotations:
+    # A Sync hook in wave 1, not PreSync: the ServiceAccount, ConfigMap and Secrets (wave -1) exist first,
+    # and the Deployments (wave 2) only roll after the migration succeeded.
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 600
+  template:
+    metadata:
+      labels:
+        {{- include "svc.selector" (dict "root" . "component" "migrate") | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "svc.podSpec" (dict "root" . "component" "migrate" "main" false "restartPolicy" "Never"
+            "command" .Values.migrations.command "args" .Values.migrations.args
+            "resources" .Values.migrations.resources) | nindent 6 }}
+{{- end }}
+{{- range .Values.jobs }}
+---
+# One-shot Job: its image is pinned in values (not the app tag), so the spec never changes and Argo CD never
+# tries to mutate an immutable Job. Rename it to run it again. Never set ttlSecondsAfterFinished here:
+# Argo CD would recreate the deleted Job and run it twice.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "svc.name" $ }}-{{ .name }}
+  labels:
+    {{- include "svc.selector" (dict "root" $ "component" .name) | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        {{- include "svc.selector" (dict "root" $ "component" .name) | nindent 8 }}
+        {{- with $.Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "svc.podSpec" (dict "root" $ "component" .name "main" false "restartPolicy" "Never"
+            "image" (required "jobs[].image must be pinned" .image) "command" .command "args" .args
+            "resources" (.resources | default $.Values.resources)) | nindent 6 }}
+{{- end }}

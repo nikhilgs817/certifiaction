@@ -1,0 +1,39 @@
+# platform/templates/fastapi-service/copier.yml — the paved-road FastAPI service template.
+# Run through platform/scripts/new-service.sh (it validates, registers the Argo CD app and locks deps).
+_min_copier_version: "9.19.0"
+_subdirectory: template
+_answers_file: .copier-answers/service.yml      # new-service.sh passes -a .copier-answers/<name>.yml
+_envops:                                        # [[ ]] instead of {{ }}: workflows and Helm already use {{ }}
+  block_start_string: "[%"
+  block_end_string: "%]"
+  variable_start_string: "[["
+  variable_end_string: "]]"
+  comment_start_string: "[#"
+  comment_end_string: "#]"
+  keep_trailing_newline: true
+
+service_name:
+  type: str
+  help: Service name (lowercase letters, digits, dashes; 3-30 chars)
+  validator: >-
+    [% if service_name != service_name|lower or ' ' in service_name or '_' in service_name
+          or service_name|length < 3 or service_name|length > 30 %]use lowercase letters, digits and dashes (3-30)[% endif %]
+description:
+  type: str
+  default: A service on the lab paved road
+owner:
+  type: str
+  default: platform
+github_owner:
+  type: str
+  default: nikhilgs817
+namespace:
+  type: str
+  help: Kubernetes namespace (default = its own namespace, with guardrails)
+  default: "[[ service_name ]]"
+replicas:
+  type: int
+  default: 2
+sync_wave:
+  type: int
+  default: 10

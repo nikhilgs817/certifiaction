@@ -1,0 +1,13 @@
+# platform/kubernetes/apps/phoenix-data/base/kustomization.yaml — namespace "phoenix": guardrails + data layer.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: phoenix
+    includeSelectors: false
+resources:
+  - guardrails.yaml
+  - networkpolicies.yaml
+  - timescale.yaml
+  - redis.yaml
+  - backup.yaml

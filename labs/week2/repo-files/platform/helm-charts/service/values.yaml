@@ -1,0 +1,98 @@
+# platform/helm-charts/service/values.yaml — defaults for every service.
+# Layering (Argo CD valueFiles, last wins): this file -> apps/_shared/<env>/values.yaml
+#   -> apps/<svc>/base/values.yaml -> apps/<svc>/overlays/<env>/values.yaml (CI writes image.tag here).
+nameOverride: ""
+
+image:
+  repository: ""                 # ghcr.io/<owner>/<service>
+  tag: ""                        # the git SHA, written by CI. Empty = nothing built yet = replicas 0
+  pullPolicy: IfNotPresent
+
+imagePullSecret:
+  create: false                  # true: render the cluster-wide SealedSecret "ghcr-pull" in this namespace
+  name: ghcr-pull
+  encryptedDockerConfigJson: ""  # kubeseal ciphertext (safe to commit); set in apps/_shared/<env>/values.yaml
+
+replicaCount: 1
+command: []                      # empty = the image ENTRYPOINT
+args: []
+containerPort: 8000
+
+env: {}                          # plain, non-secret config -> ConfigMap -> envFrom
+envFromSecrets: []               # Secret names; every key becomes an env var
+secretEnv: []                    # [{name: ENV_VAR, secretName: s, key: k, optional: false}]
+extraEnv: []                     # raw EnvVar list, rendered last; may use $(VAR) defined above
+
+podLabels: {}                    # added to every pod (app, workers, jobs); NetworkPolicies select on these
+podAnnotations: {}
+
+probes:
+  startup: {path: /healthz, periodSeconds: 2, failureThreshold: 30}    # up to 60 s to boot
+  liveness: {path: /healthz, periodSeconds: 10, failureThreshold: 3}   # restart only if the process is stuck
+  readiness: {path: /readyz, periodSeconds: 5, failureThreshold: 3}    # take out of the Service if a dependency fails
+
+resources:
+  requests: {cpu: 50m, memory: 128Mi}
+  limits: {memory: 256Mi}        # no CPU limit on purpose: requests schedule, limits would only throttle
+
+podSecurityContext:              # Pod Security "restricted" and Kyverno baseline/restricted compatible
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile: {type: RuntimeDefault}
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities: {drop: [ALL]}
+tmpDir: {enabled: true, sizeLimit: 64Mi}   # writable /tmp on a read-only root filesystem
+
+service:
+  enabled: true
+  port: 80
+
+metrics:
+  enabled: true                  # prometheus.io/* annotations for Week 7
+  port: 0                        # 0 = same port as the app; otherwise an extra container port named "metrics"
+  path: /metrics
+
+ingress:
+  enabled: false
+  className: traefik
+  host: ""
+  path: /
+
+serviceAccount:
+  create: true
+  automountToken: false          # no Kubernetes API token in the pod unless a service needs one
+
+pdb:
+  enabled: true
+  maxUnavailable: 1              # never blocks a drain, even at replicas 1 (minAvailable: 1 would)
+
+autoscaling:
+  enabled: false                 # true: HPA owns replicas (and Argo CD stops caring about spec.replicas)
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+
+workers: []                      # extra Deployments from the same image: [{name, args, replicas, resources, strategy}]
+
+migrations:
+  enabled: false                 # Argo CD PreSync Job: runs before every sync, blocks the rollout on failure
+  command: []
+  args: []
+  resources: {requests: {cpu: 50m, memory: 128Mi}, limits: {memory: 512Mi}}
+
+jobs: []                         # one-shot Jobs [{name, args}]. Rename to run again (Jobs are immutable).
+
+guardrails:
+  enabled: false                 # namespace ResourceQuota + LimitRange + default-deny NetworkPolicy
+  quota:
+    requests.cpu: "1"
+    requests.memory: 1Gi
+    limits.memory: 2Gi
+    pods: "10"
+  ingressFromCIDRs: []           # who may reach the app port; set per env in apps/_shared/<env>/values.yaml
+
+global: {}

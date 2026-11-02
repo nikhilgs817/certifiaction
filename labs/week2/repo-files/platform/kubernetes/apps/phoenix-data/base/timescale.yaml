@@ -1,0 +1,109 @@
+# platform/kubernetes/apps/phoenix-data/base/timescale.yaml — TimescaleDB (PostgreSQL 18) as a 1-replica StatefulSet.
+# Official image (Alpine, uid 70), PVC on local-path-retain, non-root, read-only root filesystem.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: timescale-init
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+data:
+  10-phoenix.sh: |
+    #!/bin/sh
+    # Runs ONCE, on an empty data directory: the app role and database. The app is not a superuser.
+    set -eu
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres <<SQL
+    CREATE ROLE phoenix LOGIN PASSWORD '${PHOENIX_DB_PASSWORD}';
+    CREATE DATABASE phoenix OWNER phoenix;
+    SQL
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname phoenix -c "CREATE EXTENSION IF NOT EXISTS timescaledb;"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: timescale
+  labels: {app.kubernetes.io/name: timescale}
+spec:
+  clusterIP: None                       # headless: DNS name timescale.phoenix.svc resolves to the pod
+  selector: {app.kubernetes.io/name: timescale}
+  ports:
+    - {name: postgres, port: 5432, targetPort: postgres}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: timescale
+  labels: {app.kubernetes.io/name: timescale}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  serviceName: timescale
+  replicas: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: timescale}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: timescale, app.kubernetes.io/component: database}
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60          # time for a clean shutdown checkpoint
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        runAsGroup: 70
+        fsGroup: 70
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: timescale
+          image: timescale/timescaledb:2.31.0-pg18@sha256:0fcff5761363809d1242f2261a3482197b5a5337407f8b97a976fb174206d579
+          ports:
+            - {name: postgres, containerPort: 5432}
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom: {secretKeyRef: {name: timescale-auth, key: postgres-password}}
+            - name: PHOENIX_DB_PASSWORD
+              valueFrom: {secretKeyRef: {name: timescale-auth, key: phoenix-password}}
+            - {name: PGDATA, value: /var/lib/postgresql/data/pgdata}   # explicit: PG 18 images moved the default
+            - {name: TIMESCALEDB_TELEMETRY, value: "off"}
+            - {name: TS_TUNE_MEMORY, value: 2GB}                         # tune for the container limit, not the VM
+            - {name: TS_TUNE_NUM_CPUS, value: "2"}
+          startupProbe:
+            exec: {command: [pg_isready, -h, 127.0.0.1, -U, postgres]}
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            exec: {command: [pg_isready, -h, 127.0.0.1, -U, postgres]}
+            periodSeconds: 10
+          livenessProbe:
+            exec: {command: [pg_isready, -h, 127.0.0.1, -U, postgres]}
+            periodSeconds: 20
+            failureThreshold: 6
+          resources:
+            requests: {cpu: 250m, memory: 512Mi}
+            limits: {memory: 2Gi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/postgresql/data}
+            - {name: run, mountPath: /var/run/postgresql}
+            - {name: tmp, mountPath: /tmp}
+            - {name: init, mountPath: /docker-entrypoint-initdb.d/10-phoenix.sh, subPath: 10-phoenix.sh}
+            - {name: backups, mountPath: /backups}     # binds the backup PVC now; restores run from here
+      volumes:
+        - {name: run, emptyDir: {}}
+        - {name: tmp, emptyDir: {}}
+        - name: backups
+          persistentVolumeClaim: {claimName: timescale-backups}
+        - name: init
+          configMap: {name: timescale-init, defaultMode: 0555}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: local-path-retain
+        resources:
+          requests: {storage: 20Gi}

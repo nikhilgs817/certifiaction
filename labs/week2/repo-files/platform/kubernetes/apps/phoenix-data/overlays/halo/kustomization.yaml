@@ -1,0 +1,15 @@
+# platform/kubernetes/apps/phoenix-data/overlays/halo/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: phoenix
+resources:
+  - ../../base
+  - sealed/timescale-auth.yaml          # platform/scripts/seal-phoenix-db.sh
+  - sealed/phoenix-db-app.yaml          # platform/scripts/seal-phoenix-db.sh
+  - sealed/redis-auth.yaml              # platform/scripts/seal-secret.sh
+  - sealed/phoenix-secrets.yaml         # platform/scripts/seal-secret.sh
+  # - ollama-external.yaml              # optional (Step B4.6): Phoenix chat -> Ollama on Windows
+labels:
+  - pairs:
+      lab.platform/env: halo
+    includeSelectors: false

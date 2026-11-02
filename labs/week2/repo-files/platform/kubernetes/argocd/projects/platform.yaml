@@ -1,0 +1,22 @@
+# platform/kubernetes/argocd/projects/platform.yaml
+# Platform-owned components: root apps, Argo CD itself, cluster add-ons. Full cluster scope.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+    argocd.argoproj.io/sync-options: Prune=false   # never auto-delete a project
+spec:
+  description: Platform components owned by the platform team
+  sourceRepos:
+    - git@github.com:nikhilgs817/ai-platform-portfolio.git
+    - https://argoproj.github.io/argo-helm          # Step 10: Argo CD manages its own chart
+    - https://bitnami-labs.github.io/sealed-secrets # Week 2: Sealed Secrets controller chart
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: '*'
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'

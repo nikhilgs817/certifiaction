@@ -1,0 +1,11 @@
+# platform/kubernetes/argocd/clusters/halo/kustomization.yaml
+# Everything that runs on cluster "halo" = the child Applications listed here (sync-wave order in each file).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - projects.yaml           # wave -10  AppProjects
+  - sealed-secrets.yaml     # wave -5   platform add-on
+  - storage-classes.yaml    # wave -5   platform add-on
+  - podinfo.yaml            # wave 10   Week 1 sample
+  - phoenix-data.yaml       # wave 20   Phoenix guardrails + TimescaleDB + Redis + backups
+  - command-center.yaml     # wave 30   Phoenix Command Center (service chart)

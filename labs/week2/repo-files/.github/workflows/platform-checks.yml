@@ -1,0 +1,51 @@
+# .github/workflows/platform-checks.yml — a chart or GitOps change is rendered for EVERY consumer before it merges.
+name: platform-checks
+
+on:
+  push:
+    branches: [main]
+    paths: [platform/helm-charts/**, platform/kubernetes/**, .github/workflows/platform-checks.yml]
+  pull_request:
+    paths: [platform/helm-charts/**, platform/kubernetes/**, .github/workflows/platform-checks.yml]
+
+permissions: {}
+
+concurrency:
+  group: platform-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.3.1
+      - name: helm lint the shared chart
+        run: helm lint platform/helm-charts/service --set image.repository=ghcr.io/example/lint
+      - name: Render every Application that uses the shared chart
+        run: |
+          set -euo pipefail
+          for app in platform/kubernetes/argocd/clusters/*/*.yaml; do
+            [ "$(yq '.kind' "$app")" = "Application" ] || continue
+            path=$(yq '.spec.source.path // ""' "$app")
+            [ "$path" = "platform/helm-charts/service" ] || continue
+            name=$(yq '.spec.source.helm.releaseName' "$app")
+            ns=$(yq '.spec.destination.namespace' "$app")
+            args=()
+            while IFS= read -r vf; do args+=(-f "$path/$vf"); done < <(yq '.spec.source.helm.valueFiles[]' "$app")
+            helm template "$name" "$path" -n "$ns" "${args[@]}" --set image.tag=ci-render > /dev/null
+            echo "rendered $name ($app)"
+          done
+      - name: Build every Kustomization
+        run: |
+          set -euo pipefail
+          find platform/kubernetes -name kustomization.yaml -print0 | while IFS= read -r -d '' k; do
+            kubectl kustomize "$(dirname "$k")" > /dev/null && echo "built $(dirname "$k")"
+          done

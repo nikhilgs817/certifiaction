@@ -1,0 +1,42 @@
+# .github/actions/promote-tag/action.yml — GitOps promotion: commit the new tag into overlays/<env>/values.yaml.
+# Loop-safe: pushes made with GITHUB_TOKEN never start workflows, the callers' path filters exclude
+# platform/kubernetes/**, and the message carries [skip ci].
+name: promote-tag
+description: Write image.tag for one service and environment, commit and push to main (retries on races)
+inputs:
+  service:
+    description: Service name
+    required: true
+  env:
+    description: Environment overlay (halo, aws)
+    required: true
+  tag:
+    description: Image tag (git SHA) to deploy
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        SERVICE: ${{ inputs.service }}
+        ENV_NAME: ${{ inputs.env }}
+        TAG: ${{ inputs.tag }}
+      run: |
+        set -euo pipefail
+        file="platform/kubernetes/apps/${SERVICE}/overlays/${ENV_NAME}/values.yaml"
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        for attempt in 1 2 3 4 5; do
+          git fetch --quiet origin main
+          git reset --quiet --hard origin/main
+          current=$(yq '.image.tag // ""' "$file")
+          if [ "$current" = "$TAG" ]; then echo "already at ${TAG:0:12}"; exit 0; fi
+          if [ -n "$current" ] && git merge-base --is-ancestor "$TAG" "$current" 2>/dev/null; then
+            echo "newer build ${current:0:12} already deployed; not going backwards"; exit 0
+          fi
+          TAG="$TAG" yq -i '.image.tag = strenv(TAG)' "$file"
+          git commit --quiet -am "deploy(${SERVICE}/${ENV_NAME}): ${TAG:0:12} [skip ci]"
+          if git push --quiet origin HEAD:main; then echo "promoted ${SERVICE} -> ${TAG:0:12}"; exit 0; fi
+          echo "push raced with another commit; retry ${attempt}"; sleep $((attempt * 3))
+        done
+        echo "::error::could not promote ${SERVICE} after 5 attempts"; exit 1
