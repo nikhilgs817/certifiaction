@@ -110,8 +110,23 @@ def extract_fences(text):
     return "\n".join(out)
 
 
+def separate_lists(text):
+    """Markdown needs a blank line before a list that follows a paragraph line (e.g. "**If it fails**")."""
+    out = []
+    for line in text.split("\n"):
+        starts_list = re.match(r"^(\d+\.|[-*]) ", line)
+        prev = out[-1] if out else ""
+        if starts_list and prev.strip() and not re.match(r"^\s*(\d+\.|[-*]) ", prev) \
+                and not prev.lstrip().startswith(("|", ">", "#")) and not prev.startswith("   "):
+            out.append("")
+        elif line.startswith("**") and prev.startswith("**"):
+            out.append("")             # "**Goal:**", "**Why:**", "**CKA corner:**" ... each its own paragraph
+        out.append(line)
+    return "\n".join(out)
+
+
 def prep(text):
-    text = extract_fences(text)
+    text = separate_lists(extract_fences(text))
     text = "\n".join(l for l in text.split("\n") if not l.lstrip().startswith("← "))
     for a, b in TAGS:
         text = text.replace(a, b)
