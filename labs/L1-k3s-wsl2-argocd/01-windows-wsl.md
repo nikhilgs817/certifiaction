@@ -25,7 +25,8 @@ systeminfo | Select-String -Pattern 'Hyper-V|hypervisor'
 # Conflicts: other kubectl/helm on PATH, Docker Desktop distros, ports 80/443/6443 in use
 Get-Command kubectl,helm,argocd -All -ErrorAction SilentlyContinue | Select-Object Source
 wsl -l -v 2>$null
-Get-NetTCPConnection -State Listen -LocalPort 80,443,6443 -ErrorAction SilentlyContinue | Select-Object LocalPort,OwningProcess,@{n='Process';e={(Get-Process -Id $_.OwningProcess).ProcessName}}
+Get-NetTCPConnection -State Listen -LocalPort 80,443,6443 -ErrorAction SilentlyContinue |
+  Select-Object LocalPort, OwningProcess, @{n='Process'; e={(Get-Process -Id $_.OwningProcess).ProcessName}}
 ```
 
 **Expected:** a version like `10.0.26100` with DisplayVersion `24H2` (or newer); hypervisor detected or virtualization enabled; about 96–124 GB visible; no `kubectl` found; nothing listening on 80/443/6443.
@@ -251,7 +252,7 @@ Then run the checks. Each line prints `OK`, or `FIX` plus what to look at:
 chk(){ if eval "$2" >/dev/null 2>&1; then echo "OK   $1"; else echo "FIX  $1  -> $3"; fi; }
 chk "systemd is PID 1"            '[ "$(ps -p1 -o comm=)" = systemd ]'                        "wsl.conf [boot] systemd=true + wsl --shutdown"
 chk "cgroup v2 unified"           '[ "$(stat -fc %T /sys/fs/cgroup)" = cgroup2fs ]'            "appendix T2 (kernelCommandLine)"
-chk "cgroup controllers"          'grep -qw memory /sys/fs/cgroup/cgroup.controllers && grep -qw cpuset /sys/fs/cgroup/cgroup.controllers && grep -qw pids /sys/fs/cgroup/cgroup.controllers' "wsl --update"
+chk "cgroup controllers"          '( for c in memory cpuset pids; do grep -qw $c /sys/fs/cgroup/cgroup.controllers || exit 1; done )' "wsl --update"
 chk "kernel modules available"    '[ -d /lib/modules/$(uname -r) ]'                             "wsl --update (modules ship with WSL)"
 chk "br_netfilter loaded"         'lsmod | grep -qw br_netfilter'                               "sudo modprobe br_netfilter"
 chk "overlayfs"                   'grep -qw overlay /proc/filesystems'                          "sudo modprobe overlay"

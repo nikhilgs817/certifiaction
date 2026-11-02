@@ -330,7 +330,9 @@ cp ~/.kube/config "$WINHOME/.kube/config"
 $bin = "$env:USERPROFILE\tools\bin"; New-Item -ItemType Directory -Force $bin | Out-Null
 $KV='v1.36.6'; $HV='v4.3.1'; $AV='v3.5.6'; $K9V='v0.51.0'
 $ProgressPreference = 'SilentlyContinue'; $tmp = New-Item -ItemType Directory -Force "$env:TEMP\halo-tools"
-function Assert-Hash($file, $expected) { if ((Get-FileHash $file -Algorithm SHA256).Hash -ine $expected.Trim()) { throw "Checksum mismatch: $file" } else { "OK  $file" } }
+function Assert-Hash($file, $expected) {
+  if ((Get-FileHash $file -Algorithm SHA256).Hash -ine $expected.Trim()) { throw "Checksum mismatch: $file" } else { "OK  $file" }
+}
 
 # kubectl
 Invoke-WebRequest "https://dl.k8s.io/release/$KV/bin/windows/amd64/kubectl.exe" -OutFile "$bin\kubectl.exe"

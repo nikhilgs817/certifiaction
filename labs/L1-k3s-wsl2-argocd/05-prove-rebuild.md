@@ -321,7 +321,8 @@ WSL distro corrupted or deleted · k3s/etcd unrecoverable · after major host ch
 
 ## Procedure A: full DR (WSL baseline import), ~45 min
 1. Windows (admin): `wsl --terminate halo` → `wsl --export halo <bk>\halo-predrill-<ts>.tar` → `wsl --unregister halo`
-2. `wsl --import halo $env:LOCALAPPDATA\wsl\halo <bk>\halo-baseline-<date>.tar` → `wsl --manage halo --set-sparse true` → `wsl --set-default halo` → `Start-ScheduledTask WSL-halo-keepalive`
+2. `wsl --import halo $env:LOCALAPPDATA\wsl\halo <bk>\halo-baseline-<date>.tar` → `wsl --manage halo --set-sparse true`
+   → `wsl --set-default halo` → `Start-ScheduledTask WSL-halo-keepalive`
 3. WSL: new GitHub SSH key (rotate: remove the old key on GitHub) → clone repo to `~/src/ai-platform-portfolio`
 4. `sudo platform/k3s/halo/install-k3s.sh`
 5. `platform/k3s/halo/install-clients.sh` (also refreshes the Windows kubeconfig)
